@@ -241,8 +241,8 @@ while True:
 		#    ref : https://learnopencv.com/introduction-to-epipolar-geometry-and-stereo-vision/
 		#
 		# baseline = 50 mm (measured)
-		# focal length = 2.48mm * (1 pixel / 0.003mm) = 826.67 pixels => ?? distances are too large
-		# focal length = 2.48mm * (1280 pixels / 5.565mm) = 570 pixels => ?? better
+		# focal length = 2.48mm * (1 pixel / 0.003mm) = 826.67 pixels => gives better results
+		# focal length = 2.48mm * (1280 pixels / 5.565mm) = 570 pixels => 
 		#    ref: http://avnet.me/ias-ar0144-datasheet
 		#
 		disparity = delta_x * (1280 / width) # scale back to active array
