@@ -139,13 +139,7 @@ nLandmarkId = 2
 # loop over the frames from the video stream
 while True:
 	# Capture image from camera
-	ret,frame = cam.read()
-
-	# Extract left/right images and resize
-	right_frame = frame[:,1:w+1,:]
-	#right_frame = cv2.resize(right_frame,(w2,h))
-	left_frame = frame[:,w:w2+1,:]
-	#left_frame = cv2.resize(left_frame,(w2,h))
+	left_frame,right_frame = dualcam.capture_dual()
 
 	# Make copies of left/right images for graphical annotations and display
 	frame1 = left_frame.copy()
@@ -251,7 +245,7 @@ while True:
 		# focal length = 2.48mm * (1280 pixels / 5.565mm) = 570 pixels => ?? better
 		#    ref: http://avnet.me/ias-ar0144-datasheet
 		#
-		disparity = delta_x * (1280 / w) # scale back to active array
+		disparity = delta_x * (1280 / width) # scale back to active array
 		distance = (50 * 827) / (disparity)
 		#distance = (50 * 570) / (disparity)
 		message1 = "disparity : "+str(int(disparity))+" pixels"
