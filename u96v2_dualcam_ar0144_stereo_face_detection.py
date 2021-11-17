@@ -15,7 +15,7 @@ limitations under the License.
 '''
 
 # USAGE
-# python stereo_face_detection.py [--input 0] [--width 640] [--height 480] [--detthreshold 0.55] [--nmsthreshold 0.35]
+# python stereo_face_detection.py [--width 640] [--height 480] [--detthreshold 0.55] [--nmsthreshold 0.35]
 
 from ctypes import *
 from typing import List
@@ -42,8 +42,6 @@ from vitis_ai_vart.utils import get_child_subgraph_dpu
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--input", required=False,
-	help = "input camera identifier (default = 0)")
 ap.add_argument("-W", "--width", required=False,
 	help = "input width (default = 640)")
 ap.add_argument("-H", "--height", required=False,
@@ -53,12 +51,6 @@ ap.add_argument("-d", "--detthreshold", required=False,
 ap.add_argument("-n", "--nmsthreshold", required=False,
 	help = "face detector NMS threshold (default = 0.35)")
 args = vars(ap.parse_args())
-
-if not args.get("input",False):
-  inputId = 0
-else:
-  inputId = int(args["input"])
-print('[INFO] input camera identifier = ',inputId)
 
 if not args.get("width",False):
   width = 640
@@ -102,7 +94,7 @@ dpu_face_landmark.start()
 
 # Initialize the capture pipeline
 print("[INFO] Initializing the capture pipeline ...")
-dualcam = DualCam('ar0144_dual',inputId,width,height)
+dualcam = DualCam('ar0144_dual',width,height)
 
 # inspired from cvzone.Utils.py
 def cornerRect( img, bbox, l=20, t=5, rt=1, colorR=(255,0,255), colorC=(0,255,0)):

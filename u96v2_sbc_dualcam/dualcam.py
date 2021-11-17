@@ -14,20 +14,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
-# Based on DualCam 2020.2 Design
+# Based on DualCam 2021.1 Design
 #    reference : http://avnet.me/u96v2-dualcam-2020.2
     
 import numpy as np
 import cv2
 import os
+import glob
+import subprocess
+
+def get_media_dev_by_name(src):
+    devices = glob.glob("/dev/media*")
+    for dev in devices:
+        proc = subprocess.run(['media-ctl','-d',dev,'-p'], capture_output=True, encoding='utf8')
+        for line in proc.stdout.splitlines():
+            if src in line:
+                return dev
+
+def get_video_dev_by_name(src):
+    devices = glob.glob("/dev/video*")
+    for dev in devices:
+        proc = subprocess.run(['v4l2-ctl','-d',dev,'-D'], capture_output=True, encoding='utf8')
+        for line in proc.stdout.splitlines():
+            if src in line:
+                return dev
+
 
 
 class DualCam():
 	  
-  def __init__(self, cap_config='ar0144_dual', cap_id=0, cap_width=1280, cap_height=800):
+  def __init__(self, cap_config='ar0144_dual', cap_width=1280, cap_height=800):
   
     self.cap_config = cap_config
-    self.cap_id = cap_id
     self.cap_width = cap_width
     self.cap_height = cap_height
     
@@ -55,34 +73,42 @@ class DualCam():
       print("[DualCam] Invalid cap_config = ",cap_config," !  (must be ar0144_dual|ar0144_single|ar1335_single)")
       return None
 
-    print("\n\r[DualCam] Initializing capture pipeline for ",self.cap_config,self.cap_id,self.cap_width,self.cap_height)
+    print("\n\r[DualCam] Looking for devices corresponding to vcap_CAPTURE_PIPELINE_v_proc_ss")
+    dev_video = get_video_dev_by_name("vcap_CAPTURE_PIPELINE_v_proc_ss")
+    dev_media = get_media_dev_by_name("vcap_CAPTURE_PIPELINE_v_proc_ss")
+    print(dev_video)
+    print(dev_media)
+    self.dev_video = dev_video
+    self.dev_media = dev_media
+
+    print("\n\r[DualCam] Initializing capture pipeline for ",self.cap_config,self.cap_width,self.cap_height)
             
-    cmd = "media-ctl -d /dev/media0 -V \"'ap1302.4-003c':2 [fmt:UYVY8_1X16/"+self.input_resolution+" field:none]\""
+    cmd = "media-ctl -d "+dev_media+" -V \"'ap1302.4-003c':2 [fmt:UYVY8_1X16/"+self.input_resolution+" field:none]\""
     print(cmd)
     os.system(cmd)
 
-    cmd = "media-ctl -d /dev/media0 -V \"'b0000000.mipi_csi2_rx_subsystem':0 [fmt:UYVY8_1X16/"+self.input_resolution+" field:none]\""
+    cmd = "media-ctl -d "+dev_media+" -V \"'b0000000.mipi_csi2_rx_subsystem':0 [fmt:UYVY8_1X16/"+self.input_resolution+" field:none]\""
     print(cmd)
     os.system(cmd)
-    cmd = "media-ctl -d /dev/media0 -V \"'b0000000.mipi_csi2_rx_subsystem':1 [fmt:UYVY8_1X16/"+self.input_resolution+" field:none]\""
-    print(cmd)
-    os.system(cmd)
-
-    cmd = "media-ctl -d /dev/media0 -V \"'b0010000.v_proc_ss':0 [fmt:UYVY8_1X16/"+self.input_resolution+" field:none]\""
-    print(cmd)
-    os.system(cmd)
-    cmd = "media-ctl -d /dev/media0 -V \"'b0010000.v_proc_ss':1 [fmt:RBG24/"+self.input_resolution+" field:none]\""
+    cmd = "media-ctl -d "+dev_media+" -V \"'b0000000.mipi_csi2_rx_subsystem':1 [fmt:UYVY8_1X16/"+self.input_resolution+" field:none]\""
     print(cmd)
     os.system(cmd)
 
-    cmd = "media-ctl -d /dev/media0 -V \"'b0040000.v_proc_ss':0 [fmt:RBG24/"+self.input_resolution+" field:none]\""
+    cmd = "media-ctl -d "+dev_media+" -V \"'b0010000.v_proc_ss':0 [fmt:UYVY8_1X16/"+self.input_resolution+" field:none]\""
     print(cmd)
     os.system(cmd)
-    cmd = "media-ctl -d /dev/media0 -V \"'b0040000.v_proc_ss':1 [fmt:RBG24/"+self.output_resolution+" field:none]\""
+    cmd = "media-ctl -d "+dev_media+" -V \"'b0010000.v_proc_ss':1 [fmt:RBG24/"+self.input_resolution+" field:none]\""
     print(cmd)
     os.system(cmd)
 
-    cmd = "v4l2-ctl -d /dev/video0  --set-fmt-video=width="+str(self.output_width)+",height="+str(self.output_height)+",pixelformat=BGR3"
+    cmd = "media-ctl -d "+dev_media+" -V \"'b0040000.v_proc_ss':0 [fmt:RBG24/"+self.input_resolution+" field:none]\""
+    print(cmd)
+    os.system(cmd)
+    cmd = "media-ctl -d "+dev_media+" -V \"'b0040000.v_proc_ss':1 [fmt:RBG24/"+self.output_resolution+" field:none]\""
+    print(cmd)
+    os.system(cmd)
+
+    cmd = "v4l2-ctl -d "+dev_video+"  --set-fmt-video=width="+str(self.output_width)+",height="+str(self.output_height)+",pixelformat=BGR3"
     print(cmd)
     os.system(cmd)
 
@@ -106,9 +132,12 @@ class DualCam():
       print(cmd)
       os.system(cmd)
 
-    print("\n\r[DualCam] Opening cv2.VideoCapture for ",self.cap_id,self.output_width,self.output_height)
+    print("\n\r[DualCam] Opening cv2.VideoCapture for ",self.output_width,self.output_height)
 
-    self.cap = cv2.VideoCapture(self.cap_id)
+    gst_pipeline = "v4l2-ctl -d "+dev_video+"  --set-fmt-video=width="+str(self.output_width)+",height="+str(self.output_height)+",pixelformat=BGR3"
+    gst_pipeline = "v4l2src device=/dev/video0 io-mode=\"dmabuf\" ! video/x-raw, width="+str(self.output_width)+", height="+str(self.output_height)+", format=BGR, framerate=60/1 ! appsink" 
+    print("GStreamer pipeline = "+gst_pipeline)
+    self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
     self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,self.output_width)
     self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT,self.output_height)
 
@@ -141,7 +170,6 @@ class DualCam():
 
   def release(self):
   
-    self.cap_id = 0
     self.cap_dual = True
     self.cap_width = 0
     self.cap_height = 0
@@ -150,6 +178,9 @@ class DualCam():
     self.output_width = 0
     self.output_height = 0
     self.output_resolution = 'WxH'
+
+    self.dev_video = ""
+    self.dev_media = ""
     
     del self.cap
     self.cap = None

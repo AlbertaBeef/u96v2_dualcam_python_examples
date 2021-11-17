@@ -73,18 +73,16 @@ if __name__ == '__main__':
     # Args handling -> check help parameters to understand
     parser = argparse.ArgumentParser(description='Camera calibration')
     parser.add_argument('--calibration_file', type=str, required=True, help='Path to the stereo calibration file')
-    parser.add_argument('--input', type=int, required=True, help='Input ID')
     parser.add_argument('--width', type=int, required=True, help='Input resolution width')
     parser.add_argument('--height', type=int, required=True, help='Input resolution height')
 
     args = parser.parse_args()
     print(args)
         
-    inputId = args.input
     width = args.width
     height = args.height   
 
-    dualcam = DualCam('ar0144_dual',inputId,width,height)
+    dualcam = DualCam('ar0144_dual',width,height)
 
     K1, D1, K2, D2, R, T, E, F, R1, R2, P1, P2, Q = load_stereo_coefficients(args.calibration_file)  # Get cams params
 

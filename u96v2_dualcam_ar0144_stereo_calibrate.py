@@ -143,14 +143,10 @@ class Main:
         if debug:
             print("Using Arguments=", self.args)
 
-        #self.dualcam_id = args.input
-        #self.dualcam_width = args.width
-        #self.dualcam_height = args.height   
-        self.dualcam_id = 0
         self.dualcam_width = 1280 
         self.dualcam_height = 800   
 
-        self.dualcam = DualCam('ar0144_dual',self.dualcam_id,self.dualcam_width,self.dualcam_height)
+        self.dualcam = DualCam('ar0144_dual',self.dualcam_width,self.dualcam_height)
 
 
     def is_markers_found(self, frame):

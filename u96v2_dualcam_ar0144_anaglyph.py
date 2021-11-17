@@ -25,23 +25,15 @@ sys.path.append(os.path.abspath('./'))
 from u96v2_sbc_dualcam.dualcam import DualCam
 
 # USAGE
-# python anaglyph.py [--input 0] [--width 640] [--height 480]
+# python anaglyph.py [--width 640] [--height 480]
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--input", required=False,
-	help = "input camera identifier (default = 0)")
 ap.add_argument("-W", "--width", required=False,
 	help = "input width (default = 640)")
 ap.add_argument("-H", "--height", required=False,
 	help = "input height (default = 480)")
 args = vars(ap.parse_args())
-
-if not args.get("input",False):
-  inputId = 0
-else:
-  inputId = int(args["input"])
-print('[INFO] input camera identifier = ',inputId)
 
 if not args.get("width",False):
   width = 640
@@ -55,7 +47,7 @@ print('[INFO] input resolution = ',width,'X',height)
 
 # Initialize the capture pipeline
 print("[INFO] Initializing the capture pipeline ...")
-dualcam = DualCam('ar0144_dual',inputId,width,height)
+dualcam = DualCam('ar0144_dual',width,height)
 
 while(True):
   # Capture input
