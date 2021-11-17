@@ -134,8 +134,7 @@ class DualCam():
 
     print("\n\r[DualCam] Opening cv2.VideoCapture for ",self.output_width,self.output_height)
 
-    gst_pipeline = "v4l2-ctl -d "+dev_video+"  --set-fmt-video=width="+str(self.output_width)+",height="+str(self.output_height)+",pixelformat=BGR3"
-    gst_pipeline = "v4l2src device=/dev/video0 io-mode=\"dmabuf\" ! video/x-raw, width="+str(self.output_width)+", height="+str(self.output_height)+", format=BGR, framerate=60/1 ! appsink" 
+    gst_pipeline = "v4l2src device="+dev_video+" io-mode=\"dmabuf\" ! video/x-raw, width="+str(self.output_width)+", height="+str(self.output_height)+", format=BGR, framerate=60/1 ! appsink" 
     print("GStreamer pipeline = "+gst_pipeline)
     self.cap = cv2.VideoCapture(gst_pipeline, cv2.CAP_GSTREAMER)
     self.cap.set(cv2.CAP_PROP_FRAME_WIDTH,self.output_width)
