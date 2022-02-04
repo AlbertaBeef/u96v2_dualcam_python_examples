@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
-# Based on DualCam 2021.1 Design
+# Based on DualCam 2021.2 Design
 #    reference : http://avnet.me/u96v2-dualcam-2020.2
     
 import numpy as np
@@ -38,20 +38,6 @@ def get_video_dev_by_name(src):
         for line in proc.stdout.splitlines():
             if src in line:
                 return dev
-
-def get_v4l_subdev_by_name(src):
-    devices = glob.glob("/dev/media*")
-    found_src = 0
-    for dev in devices:
-        proc = subprocess.run(['media-ctl','-d',dev,'-p'], capture_output=True, encoding='utf8')
-        for line in proc.stdout.splitlines():
-            if found_src == 0:
-                if src in line:
-                    found_src = 1
-            if found_src == 1:
-                if "v4l-subdev" in line:
-                    words = line.split()
-                    return words[-1]
 
 
 class DualCam():
@@ -89,13 +75,10 @@ class DualCam():
     print("\n\r[DualCam] Looking for devices corresponding to AP1302")
     dev_video = get_video_dev_by_name("vcap_CAPTURE_PIPELINE_v_proc_ss")
     dev_media = get_media_dev_by_name("vcap_CAPTURE_PIPELINE_v_proc_ss")
-    dev_ap1302_subdev = get_v4l_subdev_by_name("ap1302.4-003c (3 pads, 3 links)")
     print(dev_video)
     print(dev_media)
-    print(dev_ap1302_subdev)
     self.dev_video = dev_video
     self.dev_media = dev_media
-    self.dev_ap1302_subdev = dev_ap1302_subdev
 
     print("\n\r[DualCam] Initializing capture pipeline for ",self.cap_config,self.cap_width,self.cap_height)
             
@@ -124,33 +107,37 @@ class DualCam():
     print(cmd)
     os.system(cmd)
 
-    cmd = "v4l2-ctl -d "+dev_video+"  --set-fmt-video=width="+str(self.output_width)+",height="+str(self.output_height)+",pixelformat=BGR3"
-    print(cmd)
-    os.system(cmd)
+    #cmd = "v4l2-ctl -d "+dev_video+"  --set-fmt-video=width="+str(self.output_width)+",height="+str(self.output_height)+",pixelformat=BGR3"
+    #print(cmd)
+    #os.system(cmd)
 
     if cap_config == 'ar0144_dual' or cap_config == 'ar0144_single':
        print("\n\r[DualCam] Disabling Auto White Balance")
-       cmd = "yavta --no-query -w '0x009a0914 0' "+dev_ap1302_subdev
+       cmd = "v4l2-ctl --set-ctrl white_balance_auto_preset=0 -d "+dev_video
        print(cmd)
        os.system(cmd)
 
     if cap_config == 'ar0144_dual':
       print("\n\r[DualCam] Configuring AP1302 for left-right side-by-side configuration")
 
-      cmd = "i2cset -f -y 4 0x3c 0x10 0x0C 0x00 0x04 i"
+      cmd = "v4l2-ctl --set-ctrl 3d_path=0 -d "+dev_video
       print(cmd)
       os.system(cmd)
 
     if cap_config == 'ar1335_single':
       print("\n\r[DualCam] Configuring AP1302 for no horizontal/vertical flip")
 
-      cmd = "i2cset -f -y 4 0x3c 0x10 0x0C 0x00 0x00 i"
+      cmd = "v4l2-ctl --set-ctrl vflip=0 -d "+dev_video
+      print(cmd)
+      os.system(cmd)
+
+      cmd = "v4l2-ctl --set-ctrl hflip=0 -d "+dev_video
       print(cmd)
       os.system(cmd)
 
       print("\n\r[DualCam] Configuring AP1302 to enable auto-focus")
 
-      cmd = "i2cset -f -y 4 0x3c 0x50 0x58 0x11 0x86 i"
+      cmd = "v4l2-ctl --set-ctrl auto_focus=1 -d "+dev_video
       print(cmd)
       os.system(cmd)
 
