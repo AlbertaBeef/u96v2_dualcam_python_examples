@@ -15,7 +15,7 @@ limitations under the License.
 '''
 
 # Based on DualCam 2021.2 Design
-#    reference : http://avnet.me/u96v2-dualcam-2020.2
+#    reference : http://avnet.me/u96v2-dualcam-2021.2
     
 import numpy as np
 import cv2
@@ -117,12 +117,11 @@ class DualCam():
        print(cmd)
        os.system(cmd)
 
-    if cap_config == 'ar0144_dual':
-      print("\n\r[DualCam] Configuring AP1302 for left-right side-by-side configuration")
-
-      cmd = "v4l2-ctl --set-ctrl 3d_path=0 -d "+dev_video
-      print(cmd)
-      os.system(cmd)
+    #if cap_config == 'ar0144_dual':
+    #  print("\n\r[DualCam] Configuring AP1302 for left-right side-by-side configuration")
+    #  cmd = "v4l2-ctl --set-ctrl 3d_path=1 -d "+dev_video
+    #  print(cmd)
+    #  os.system(cmd)
 
     if cap_config == 'ar1335_single':
       print("\n\r[DualCam] Configuring AP1302 for no horizontal/vertical flip")
@@ -170,8 +169,10 @@ class DualCam():
 
     _, frame = self.cap.retrieve()
     
-    left  = frame[:,1:(self.cap_width)+1,:]
-    right = frame[:,(self.cap_width):(self.cap_width*2)+1,:]    
+    #left  = frame[:,1:(self.cap_width)+1,:]
+    #right = frame[:,(self.cap_width):(self.cap_width*2)+1,:]    
+    right = frame[:,1:(self.cap_width)+1,:]
+    left  = frame[:,(self.cap_width):(self.cap_width*2)+1,:]    
     
     return left,right    
   
