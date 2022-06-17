@@ -1,5 +1,5 @@
 '''
-Copyright 2021 Avnet Inc.
+Copyright 2022 Avnet Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,8 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 '''
 
+# Reference:
+#    https://www.hackster.io/AlbertaBeef/stereo-neural-inference-with-the-dual-camera-mezzanine-418aca
+
 # USAGE
-# python stereo_face_detection.py [--width 640] [--height 480] [--detthreshold 0.55] [--nmsthreshold 0.35]
+# python stereo_face_detection.py [--width 640] [--height 480] [--detthreshold 0.55] [--nmsthreshold 0.35] [--fps 1] [--output 0]
 
 from ctypes import *
 from typing import List
@@ -50,6 +53,10 @@ ap.add_argument("-d", "--detthreshold", required=False,
 	help = "face detector softmax threshold (default = 0.55)")
 ap.add_argument("-n", "--nmsthreshold", required=False,
 	help = "face detector NMS threshold (default = 0.35)")
+ap.add_argument("-f", "--fps", required=False,
+	help = "fps overlay (default = 0)")
+ap.add_argument("-o", "--output", required=False,
+	help = "output display (0==imshow(default) | 1==kmssink)")
 args = vars(ap.parse_args())
 
 if not args.get("width",False):
@@ -74,6 +81,18 @@ else:
   nmsThreshold = float(args["nmsthreshold"])
 print('[INFO] face detector - NMS threshold = ',nmsThreshold)
 
+if not args.get("fps",False):
+  fps_overlay = 0 
+else:
+  fps_overlay = int(args["fps"])
+print('[INFO] fps overlay =  ',fps_overlay)
+
+if not args.get("output",False):
+  output_select = 0 
+else:
+  output_select = int(args["output"])
+print('[INFO] output select =  ',output_select)
+
 # Initialize Vitis-AI/DPU based face detector
 densebox_xmodel = "/usr/share/vitis_ai_library/models/densebox_640_360/densebox_640_360.xmodel"
 densebox_graph = xir.Graph.deserialize(densebox_xmodel)
@@ -91,6 +110,15 @@ assert len(landmark_subgraphs) == 1 # only one DPU kernel
 landmark_dpu = vart.Runner.create_runner(landmark_subgraphs[0],"run")
 dpu_face_landmark = FaceLandmark(landmark_dpu)
 dpu_face_landmark.start()
+
+# init the real-time FPS display
+rt_fps_count = 0;
+rt_fps_time = cv2.getTickCount()
+rt_fps_valid = False
+rt_fps = 0.0
+rt_fps_message = "FPS: {0:.2f}".format(rt_fps)
+rt_fps_x = 10
+rt_fps_y = height-10
 
 # Initialize the capture pipeline
 print("[INFO] Initializing the capture pipeline ...")
@@ -128,8 +156,29 @@ def cornerRect( img, bbox, l=20, t=5, rt=1, colorR=(255,0,255), colorC=(0,255,0)
 bUseLandmarks = False
 nLandmarkId = 2
 
+def initVideoWriter(output_select):
+  pipeline_out = ""
+  
+  if output_select == 1:
+	  pipeline_out = "appsrc ! video/x-raw, width=640,height=480, format=BGR ! kmssink bus-id=fd4a0000.display fullscreen-overlay=true sync=false"
+  if output_select == 2:
+    #pipeline_out = "appsrc ! video/x-raw, format=BGR ! jpegenc ! udpsink host=10.0.0.1 port=5000 sync=false"
+    pipeline_out = "appsrc ! video/x-raw ! jpegenc ! multipartmux ! tcpserversink name=out-sink host=0.0.0.0 port=5000 sync=false"
+    #decode on PC with
+    # gst-launch-1.0 tcpclientsrc host=U96V2_IP port=5000 ! jpegdec ! videoconvert ! autovideosink sync=false
+
+  return cv2.VideoWriter(pipeline_out, cv2.CAP_GSTREAMER, 0, 25.0, (640,480))
+
+out = []
+if output_select > 0:
+  out = initVideoWriter(output_select)
+
 # loop over the frames from the video stream
 while True:
+	# Update the real-time FPS counter
+	if rt_fps_count == 0:
+		rt_fps_time = cv2.getTickCount()
+
 	# Capture image from camera
 	left_frame,right_frame = dualcam.capture_dual()
 
@@ -247,7 +296,7 @@ while True:
 
 		if ( (distance > 500) & (distance < 1000) ):
 			distance_valid = True
-                    
+
 	# loop over the left faces
 	for i,(left,top,right,bottom) in enumerate(left_faces): 
 
@@ -257,9 +306,23 @@ while True:
 			cornerRect(frame1,(left,top,right,bottom),colorR=(0,0,255),colorC=(0,0,255))
 
 
-	# Display the processed image
-	display_frame = cv2.hconcat([frame1, frame2])
-	cv2.imshow("Stereo Face Detection", display_frame)
+	# Format the output frame
+	if output_select ==1:
+		display_frame = frame1
+	else:
+		display_frame = cv2.hconcat([frame1, frame2])
+
+	status = ""
+	if fps_overlay == True and rt_fps_valid == True:
+		status = status + " " + rt_fps_message
+	cv2.putText(display_frame, status, (rt_fps_x,rt_fps_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1, cv2.LINE_AA)
+
+	# Display the output frame
+	if output_select == 0:
+		cv2.imshow("Stereo Face Detection", display_frame)    
+	if output_select > 0 and out.isOpened():
+		out.write(display_frame)
+
 	key = cv2.waitKey(1) & 0xFF
 
 	if key == ord("d"):
@@ -271,11 +334,20 @@ while True:
 		if nLandmarkId >= 5:
 			nLandmarkId = 0
 		print("nLandmarkId = ",nLandmarkId);
-  
 
 	# if the `q` key was pressed, break from the loop
 	if key == ord("q"):
 		break
+ 
+ 	# Update the real-time FPS counter
+	rt_fps_count = rt_fps_count + 1
+	if rt_fps_count >= 10:
+		t = (cv2.getTickCount() - rt_fps_time)/cv2.getTickFrequency()
+		rt_fps_valid = True
+		rt_fps = 10.0/t
+		rt_fps_message = "FPS: {0:.2f}".format(rt_fps)
+		#print("[INFO] ",rt_fps_message)
+		rt_fps_count = 0
 
 # Stop the face detector
 dpu_face_detector.stop()
